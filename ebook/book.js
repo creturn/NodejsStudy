@@ -6,6 +6,7 @@ var bookApplication = function() {
     var db;
     var net;
     var $;
+    var file;
     /**
      * 初始化操作
      * @return {[obj]}
@@ -15,6 +16,7 @@ var bookApplication = function() {
         net = require('./NetUtils').create;
         db = require('./db').create;
         $ = require('jQuery');
+        file = require('fs');
         return this;
     }
     /**
@@ -23,7 +25,7 @@ var bookApplication = function() {
      */
     this.run = function() {
         console.log('application running ...');
-        this.getBookList(1, 20);
+        this.getBookList(1, 21963);
         return this;
     }
     /**
@@ -50,11 +52,25 @@ var bookApplication = function() {
         var bookImage = $(html).find('#content .hst img').attr('src');
         var descript = $(html).find('#content > dd > p').eq(1).html();
         var bookType = $(html).find('#content table a').html();
-        console.log('书名:' + bookName);
-        console.log('文章:' + bookArticleUrl);
-        console.log('封面:' + bookImage)
-        console.log('简介:' + descript);
-        console.log('类别:' + bookType);
+        // console.log('书名:' + bookName);
+        // console.log('文章:' + bookArticleUrl);
+        // console.log('封面:' + bookImage)
+        // console.log('简介:' + descript);
+        // console.log('类别:' + bookType);
+        var bookId = bookArticleUrl.split('/');
+        bookId.pop();
+        var bookInfo = {
+            id: bookId.pop(),
+            name: bookName,
+            artUrl: bookArticleUrl,
+            img: bookImage,
+            desc: descript,
+            type: bookType,
+            status: 0
+        };
+        // console.log(JSON.stringify(bookInfo));
+        console.log('Now save bookID: ' + bookInfo.id + ' book:' + bookInfo.name);
+        file.writeFile('./book/' + bookInfo.id + '.json', JSON.stringify(bookInfo));
     }
     /**
      * 获取书本章节列表

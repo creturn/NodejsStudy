@@ -29,7 +29,11 @@ var NetUtils = function() {
                 if (charset == undefined || charset == 'utf8') {
                     callback(html);
                 } else {
-                    callback(gbk_to_utf8.convert(new Buffer(html, 'binary')).toString());
+                    try {
+                        callback(gbk_to_utf8.convert(new Buffer(html, 'binary')).toString());
+                    } catch (err) {
+                        console.log(err);
+                    }
                 }
             }).on('error', function(e) {
                 console.log('Fetch Url Error:' + url);
