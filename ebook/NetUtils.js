@@ -33,10 +33,10 @@ var NetUtils = function() {
                 html += chunk;
             }).on('end', function() {
                 if (charset == undefined || charset == 'utf8') {
-                    callback(html);
+                    callback(html, url);
                 } else {
                     try {
-                        callback(gbk_to_utf8.convert(new Buffer(html, 'binary')).toString());
+                        callback(gbk_to_utf8.convert(new Buffer(html, 'binary')).toString(), url);
                     } catch (err) {
                         console.log(err);
                     }
