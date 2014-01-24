@@ -7,6 +7,7 @@ var bookApplication = function() {
     var net;
     var $;
     var file;
+    var async;
     /**
      * 初始化操作
      * @return {[obj]}
@@ -17,6 +18,7 @@ var bookApplication = function() {
         db = require('./db').create;
         $ = require('jQuery');
         file = require('fs');
+        async = require('async');
         return this;
     }
     /**
@@ -28,7 +30,7 @@ var bookApplication = function() {
         //this.getBookList(1, 21963);
         // this.getBookList(1, 3);
         // this.getArticleList();
-        this.getArticleContent();
+        this.getArticleContentAsync();
         return this;
     }
     /**
@@ -127,30 +129,98 @@ var bookApplication = function() {
         console.log("Load json book List");
         var bookList = [];
         var dirList = file.readdirSync(bookPath);
+        var taskNum = 1000;
         dirList.forEach(function(item) {
             if (!file.statSync(bookPath + item).isDirectory()) {
                 if (item.split('.').pop() == 'json') {
-                    bookList.push(JSON.parse(file.readFileSync(bookPath + item)));
+                    try {
+                        var jsonContent = JSON.parse(file.readFileSync(bookPath + item));
+                        if (jsonContent.status == 1 && taskNum > 0) {
+                            bookList.push(jsonContent);
+                            taskNum--;
+                        }
+                    } catch (e) {
+                        console.log('JSON PARSE ERROR' + e);
+                    }
                 };
             };
         });
-        bookList.forEach(function(book) {
-            if (book.status == 1) {
-                if (book.artList.length > 0) {
-                    for (var i = 0; i < book.artList.length; i++) {
-                        net.getUrlContent(book.artList[i].articleContentUrl, function(html, url) {
-                            var artSaveName = require('crypto').createHash('md5').update(url).digest('hex') + '.txt';
-                            var content = $(html).find('#contents').html().replace('<div id="txtright"></div>', '');
-                            console.log("start save url:" + url);
-                            file.writeFile(artPath + artSaveName, content);
-                        }, 'GBK');
+        if (bookList.length > 0) {
+            bookList.forEach(function(book) {
+                if (book.status == 1) {
+                    if (book.artList.length > 0) {
+                        for (var i = 0; i < book.artList.length; i++) {
+                            net.getUrlContent(book.artList[i].articleContentUrl, function(html, url) {
+                                var artSaveName = require('crypto').createHash('md5').update(url).digest('hex') + '.txt';
+                                var content = $(html).find('#contents').html().replace('<div id="txtright"></div>', '');
+                                console.log("start save url:" + url);
+                                file.writeFile(artPath + artSaveName, content);
+                            }, 'GBK');
+                        }
                     }
-                }
+                };
+            });
+            this.getArticleContent();
+        }
+    }
+    /**
+     * 获取书本内容信息
+     * @param  {string} url
+     */
+    this.getArticleContentAsync = function() {
+        var bookPath = './book/';
+        var artPath = './article/';
+        //先加载任务到内存当中
+        console.log("Load json book List");
+        var bookList = [];
+        var dirList = file.readdirSync(bookPath);
+        dirList.forEach(function(item) {
+            if (!file.statSync(bookPath + item).isDirectory()) {
+                if (item.split('.').pop() == 'json') {
+                    try {
+                        var jsonContent = JSON.parse(file.readFileSync(bookPath + item));
+                        if (jsonContent.status == 1) {
+                            bookList.push(jsonContent);
+                        }
+                    } catch (e) {
+                        console.log('JSON PARSE ERROR' + e);
+                    }
+                };
             };
         });
-
+        if (bookList.length > 0) {
+            bookList.forEach(function(book) {
+                if (book.status == 1) {
+                    if (book.artList.length > 0) {
+                        //在这里就开始任务队列
+                        var q = async.queue(function(task, callback) {
+                            console.log('Task be run', task);
+                            callback(task, function(html, url) {
+                                var artSaveName = require('crypto').createHash('md5').update(url).digest('hex') + '.txt';
+                                var content = $(html).find('#contents').html().replace('<div id="txtright"></div>', '');
+                                console.log("start save url:" + url);
+                                file.writeFile(artPath + artSaveName, content);
+                            }, 'GBK');
+                        }, 20);
+                        q.drain = function() {
+                            console.log('Book be finshed Names:' + book.name);
+                        };
+                        for (var i = 0; i < book.artList.length; i++) {
+                            // net.getUrlContent(book.artList[i].articleContentUrl, function(html, url) {
+                            //     var artSaveName = require('crypto').createHash('md5').update(url).digest('hex') + '.txt';
+                            //     var content = $(html).find('#contents').html().replace('<div id="txtright"></div>', '');
+                            //     console.log("start save url:" + url);
+                            //     file.writeFile(artPath + artSaveName, content);
+                            // }, 'GBK');
+                            q.push(book.artList[i].articleContentUrl, function(error) {
+                                // console.log('Error URL:' + error);
+                            });
+                        }
+                    }
+                };
+            });
+        }
     }
-
 };
 
 exports.book = bookApplication;
